@@ -9,7 +9,7 @@
 	"description": "Displays the problem count by severity.",
 	"url": "web_interface/frontend_sections/dashboards/widgets/problems_severity",
 	"widget": {
-		"js_class": "CWidgetProblemsBySv",
+		"js_class": "CWidgetProblemsBySvMnz",
 		"in": {
 			"hostids": {
 				"type": "_hostids"
