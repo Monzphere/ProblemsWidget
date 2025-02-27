@@ -52,6 +52,9 @@ $groupids = array_key_exists('groupids', $data['fields'])
 	->addField(
 		new CWidgetFieldTagsView($data['fields']['tags'])
 	)
+	->addField(
+		(new CWidgetFieldTextBoxView($data['fields']['tag_priority']))->setPlaceholder(_('comma-separated list'))
+	)
 	->addField(array_key_exists('show_type', $data['fields'])
 		? new CWidgetFieldRadioButtonListView($data['fields']['show_type'])
 		: null
