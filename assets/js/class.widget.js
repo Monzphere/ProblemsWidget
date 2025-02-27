@@ -13,7 +13,7 @@
 **/
 
 
-class CWidgetProblemsBySv extends CWidget {
+class CWidgetProblemsBySvMnz extends CWidget {
 
 	static SHOW_GROUPS = 0;
 	static SHOW_TOTALS = 1;
