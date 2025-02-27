@@ -4,141 +4,111 @@ namespace Modules\ProblemsBySvMnz\Includes;
 
 class Helpers {
 	public static function getSystemStatusByTags(array $data): array {
-		error_log('DEBUG - Iniciando getSystemStatusByTags');
-		error_log('DEBUG - Estrutura completa de data: ' . print_r($data, true));
-		error_log('DEBUG - Filter completo: ' . print_r(isset($data['filter']) ? $data['filter'] : [], true));
-		error_log('DEBUG - Filter tags: ' . print_r(isset($data['filter']['tags']) ? $data['filter']['tags'] : [], true));
-		
+
 		$tags = [];
 		$problems_by_tags = [];
 		$filter_tags = isset($data['filter']['tags']) ? $data['filter']['tags'] : [];
 		$evaltype = isset($data['filter']['evaltype']) ? $data['filter']['evaltype'] : TAG_EVAL_TYPE_AND_OR;
 
-		error_log('DEBUG - Filter tags após atribuição: ' . print_r($filter_tags, true));
-		error_log('DEBUG - Eval type: ' . $evaltype);
-
-		// Se temos filtros, vamos criar apenas as tags que queremos mostrar
-		if (!empty($filter_tags)) {
-			error_log('DEBUG - Processando com filtros de tag');
-			$filtered_problems = [];
-			
-			// Primeiro coletamos todos os problemas que correspondem aos filtros
-			if (isset($data['groups'])) {
-				foreach ($data['groups'] as $group) {
-					if (isset($group['stats'])) {
-						foreach ($group['stats'] as $severity => $stats) {
-							if (isset($stats['problems'])) {
-								foreach ($stats['problems'] as $problem) {
-									if (!isset($problem['tags']) || !is_array($problem['tags'])) {
-										continue;
-									}
-
-									error_log('DEBUG - Processando problema: ' . print_r($problem, true));
-									$matches = 0;
-									$matched_tags = [];
-									
-									// Verifica cada tag do filtro
-									foreach ($filter_tags as $filter_tag) {
-										foreach ($problem['tags'] as $tag) {
-											if ($tag['tag'] === $filter_tag['tag'] && 
-												($filter_tag['value'] === '' || $tag['value'] === $filter_tag['value'])) {
-												$matches++;
-												$matched_tags[] = [
-													'tag' => $filter_tag['tag'],
-													'value' => $filter_tag['value']
-												];
-												break;
-											}
-										}
-									}
-
-									// Decide se inclui o problema baseado no tipo de avaliação
-									$include_problem = false;
-									if ($evaltype == TAG_EVAL_TYPE_AND_OR && $matches == count($filter_tags)) {
-										$include_problem = true;
-									}
-									elseif ($evaltype == TAG_EVAL_TYPE_OR && $matches > 0) {
-										$include_problem = true;
-									}
-
-									if ($include_problem) {
-										$problem['severity'] = (int) $severity;
-										// Importante: substitui as tags do problema apenas pelas tags que correspondem ao filtro
-										$problem['tags'] = $matched_tags;
-										$filtered_problems[] = $problem;
-									}
-								}
-							}
-						}
-					}
+		// Primeiro, coleta todos os problemas e suas tags
+		$all_problems = [];
+		if (isset($data['problems'])) {
+			foreach ($data['problems'] as $problem) {
+				if (!isset($problem['tags']) || !is_array($problem['tags'])) {
+					continue;
 				}
+				$all_problems[] = $problem;
 			}
+		}
 
-			error_log('DEBUG - Número de problemas filtrados: ' . count($filtered_problems));
-
-			// Agora processamos apenas as tags que queremos mostrar
-			foreach ($filter_tags as $filter_tag) {
-				$tag_key = $filter_tag['tag'] . ':' . $filter_tag['value'];
-				$tags[$tag_key] = [
-					'tag' => $filter_tag['tag'],
-					'value' => $filter_tag['value'],
-					'problems' => [],
-					'severities' => array_fill(0, TRIGGER_SEVERITY_COUNT, 0)
-				];
-
-				// Adiciona os problemas que têm esta tag
-				foreach ($filtered_problems as $problem) {
-					foreach ($problem['tags'] as $tag) {
-						if ($tag['tag'] === $filter_tag['tag'] && 
-							($filter_tag['value'] === '' || $tag['value'] === $filter_tag['value'])) {
-							if (!in_array($problem['eventid'], array_column($tags[$tag_key]['problems'], 'eventid'))) {
-								$tags[$tag_key]['problems'][] = $problem;
-								$tags[$tag_key]['severities'][$problem['severity']]++;
+		// Se não encontrou problemas diretamente, procura nos grupos
+		if (empty($all_problems) && isset($data['groups'])) {
+			foreach ($data['groups'] as $group) {
+				if (isset($group['stats'])) {
+					foreach ($group['stats'] as $severity => $stats) {
+						if (isset($stats['problems']) && is_array($stats['problems'])) {
+							foreach ($stats['problems'] as $problem) {
+								if (!isset($problem['tags']) || !is_array($problem['tags'])) {
+									continue;
+								}
+								$problem['severity'] = (int) $severity;
+								$all_problems[] = $problem;
 							}
-							break;
 						}
 					}
 				}
 			}
 		}
-		// Se não temos filtros, mostra todas as tags
-		else {
-			error_log('DEBUG - Processando sem filtros de tag');
-			if (isset($data['groups'])) {
-				foreach ($data['groups'] as $group) {
-					if (isset($group['stats'])) {
-						foreach ($group['stats'] as $severity => $stats) {
-							if (isset($stats['problems'])) {
-								foreach ($stats['problems'] as $problem) {
-									if (!isset($problem['tags']) || !is_array($problem['tags'])) {
-										continue;
-									}
 
-									$problem['severity'] = (int) $severity;
-									
-									foreach ($problem['tags'] as $tag) {
-										if (!isset($tag['tag']) || !isset($tag['value'])) {
-											continue;
-										}
 
-										$tag_key = $tag['tag'].':'.$tag['value'];
-										
-										if (!isset($tags[$tag_key])) {
-											$tags[$tag_key] = [
-												'tag' => $tag['tag'],
-												'value' => $tag['value'],
-												'problems' => [],
-												'severities' => array_fill(0, TRIGGER_SEVERITY_COUNT, 0)
-											];
-										}
+		// Separa os filtros em tags para excluir e tags para incluir
+		$exclude_tags = [];
+		$include_tags = [];
+		foreach ($filter_tags as $filter_tag) {
+			if (isset($filter_tag['operator']) && ($filter_tag['operator'] == 8 || $filter_tag['operator'] == 5)) {
+				$exclude_tags[] = $filter_tag['tag'];
+			} else {
+				$include_tags[] = $filter_tag;
+			}
+		}
 
-										if (!in_array($problem['eventid'], array_column($tags[$tag_key]['problems'], 'eventid'))) {
-											$tags[$tag_key]['problems'][] = $problem;
-											$tags[$tag_key]['severities'][$problem['severity']]++;
-										}
-									}
-								}
-							}
+
+
+		// Processa cada problema
+		foreach ($all_problems as $problem) {
+			$filtered_tags = [];
+			$include_problem = true;
+
+			// Se temos tags para incluir, verifica se o problema atende aos critérios
+			if (!empty($include_tags)) {
+				$matches = 0;
+				foreach ($include_tags as $filter_tag) {
+					foreach ($problem['tags'] as $tag) {
+						if ($tag['tag'] === $filter_tag['tag'] && 
+							($filter_tag['value'] === '' || $tag['value'] === $filter_tag['value'])) {
+							$matches++;
+							$filtered_tags[] = $tag;
+							break;
+						}
+					}
+				}
+
+				if ($evaltype == TAG_EVAL_TYPE_AND_OR && $matches != count($include_tags)) {
+					$include_problem = false;
+				}
+				elseif ($evaltype == TAG_EVAL_TYPE_OR && $matches == 0) {
+					$include_problem = false;
+				}
+			}
+
+			// Se o problema deve ser incluído, adiciona todas as tags não excluídas
+			if ($include_problem) {
+				foreach ($problem['tags'] as $tag) {
+					if (!in_array($tag['tag'], $exclude_tags) && 
+						(!in_array($tag, $filtered_tags, true))) {
+						$filtered_tags[] = $tag;
+					}
+				}
+
+				if (!empty($filtered_tags)) {
+					$problem['tags'] = array_unique($filtered_tags, SORT_REGULAR);
+					
+					// Agrupa por tag
+					foreach ($problem['tags'] as $tag) {
+						$tag_key = $tag['tag'].':'.$tag['value'];
+						
+						if (!isset($tags[$tag_key])) {
+							$tags[$tag_key] = [
+								'tag' => $tag['tag'],
+								'value' => $tag['value'],
+								'problems' => [],
+								'severities' => array_fill(0, TRIGGER_SEVERITY_COUNT, 0)
+							];
+						}
+
+						if (!in_array($problem['eventid'], array_column($tags[$tag_key]['problems'], 'eventid'))) {
+							$tags[$tag_key]['problems'][] = $problem;
+							$tags[$tag_key]['severities'][$problem['severity']]++;
 						}
 					}
 				}
@@ -165,7 +135,38 @@ class Helpers {
 			return strcmp($a['name'], $b['name']);
 		});
 
-		error_log('DEBUG - Tags finais geradas: ' . print_r(array_column($problems_by_tags, 'name'), true));
+
 		return $problems_by_tags;
 	}
-}
+
+	private static function matchesOperator($tag, $filter_tag) {
+		// Se as tags não correspondem, retorna false imediatamente
+		if ($tag['tag'] !== $filter_tag['tag']) {
+			return false;
+		}
+
+		// Se não há operador definido ou valor do filtro está vazio, considera match
+		if (!isset($filter_tag['operator']) || $filter_tag['value'] === '') {
+			return true;
+		}
+
+		switch ($filter_tag['operator']) {
+			case 0: // Equals
+				return $tag['value'] === $filter_tag['value'];
+			case 1: // Does not equal
+				return $tag['value'] !== $filter_tag['value'];
+			case 2: // Contains
+				return stripos($tag['value'], $filter_tag['value']) !== false;
+			case 3: // Does not contain
+				return stripos($tag['value'], $filter_tag['value']) === false;
+			case 4: // Exists
+				return true;
+			case 6: // Matches regex
+				return @preg_match('/'.$filter_tag['value'].'/', $tag['value']);
+			case 7: // Does not match regex
+				return !@preg_match('/'.$filter_tag['value'].'/', $tag['value']);
+			default:
+				return false;
+		}
+	}
+} 
