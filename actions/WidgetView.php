@@ -81,10 +81,12 @@ class WidgetView extends CControllerDashboardWidgetView {
 			}
 			elseif ($filter['show_type'] == Widget::SHOW_TAGS) {
 				if (!isset($data['groups']) || !is_array($data['groups'])) {
-					
 					$data['groups'] = [];
 				}
 
+				// Adiciona o filtro aos dados antes de chamar o helper
+				$data['filter'] = $filter;
+				
 				$tag_groups = Helpers::getSystemStatusByTags($data);
 				
 				// Ordenar grupos por prioridade de tag se definido
