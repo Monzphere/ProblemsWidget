@@ -71,6 +71,9 @@ class WidgetForm extends CWidgetForm {
 			->addField(
 				new CWidgetFieldTags('tags')
 			)
+			->addField(
+				new CWidgetFieldTextBox('tag_priority', _('Tag display priority'))
+			)
 			->addField($this->isTemplateDashboard()
 				? null
 				: (new CWidgetFieldRadioButtonList('show_type', _('Show'), [
