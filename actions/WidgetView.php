@@ -65,10 +65,11 @@ class WidgetView extends CControllerDashboardWidgetView {
 				'ext_ack' => $this->fields_values['ext_ack'],
 				'show_timeline' => $this->fields_values['show_timeline'],
 				'evaltype' => $this->fields_values['evaltype'],
-				'tags' => $this->fields_values['tags'],
+				'tags' => [],
 				'tag_priority' => $this->fields_values['tag_priority']
 			];
 
+			// Obtém todos os dados sem filtrar por tags
 			$data = getSystemStatusData($filter);
 			
 			// Inicializa o array de problemas se não existir
@@ -84,8 +85,11 @@ class WidgetView extends CControllerDashboardWidgetView {
 					$data['groups'] = [];
 				}
 
-				// Adiciona o filtro aos dados antes de chamar o helper
-				$data['filter'] = $filter;
+				// Adiciona os filtros de tag apenas para nossa função
+				$data['filter'] = [
+					'evaltype' => $this->fields_values['evaltype'],
+					'tags' => $this->fields_values['tags']
+				];
 				
 				$tag_groups = Helpers::getSystemStatusByTags($data);
 				
@@ -118,14 +122,12 @@ class WidgetView extends CControllerDashboardWidgetView {
 					$group['groupid'] = md5($group['name']); 
 					$group['has_problems'] = !empty($group['problems']);
 					
-					
 					if (!isset($group['stats'])) {
 						$group['stats'] = [];
 					}
 					
 					if (!isset($group['stats']['severities'])) {
 						$group['stats']['severities'] = array_fill(0, TRIGGER_SEVERITY_COUNT, 0);
-						
 						
 						if (!empty($group['problems'])) {
 							foreach ($group['problems'] as $problem) {
