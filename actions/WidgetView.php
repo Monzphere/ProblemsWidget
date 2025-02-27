@@ -65,7 +65,8 @@ class WidgetView extends CControllerDashboardWidgetView {
 				'ext_ack' => $this->fields_values['ext_ack'],
 				'show_timeline' => $this->fields_values['show_timeline'],
 				'evaltype' => $this->fields_values['evaltype'],
-				'tags' => $this->fields_values['tags']
+				'tags' => $this->fields_values['tags'],
+				'tag_priority' => $this->fields_values['tag_priority']
 			];
 
 			$data = getSystemStatusData($filter);
@@ -86,7 +87,30 @@ class WidgetView extends CControllerDashboardWidgetView {
 
 				$tag_groups = Helpers::getSystemStatusByTags($data);
 				
-				
+				// Ordenar grupos por prioridade de tag se definido
+				if (!empty($filter['tag_priority'])) {
+					$priorities = array_map('trim', explode(',', $filter['tag_priority']));
+					
+					usort($tag_groups, function($a, $b) use ($priorities) {
+						$tag_a = explode(':', $a['name'])[0];
+						$tag_b = explode(':', $b['name'])[0];
+						
+						$pos_a = array_search($tag_a, $priorities);
+						$pos_b = array_search($tag_b, $priorities);
+						
+						if ($pos_a !== false && $pos_b !== false) {
+							return $pos_a - $pos_b;
+						}
+						elseif ($pos_a !== false) {
+							return -1;
+						}
+						elseif ($pos_b !== false) {
+							return 1;
+						}
+						
+						return strcmp($a['name'], $b['name']);
+					});
+				}
 				
 				foreach ($tag_groups as &$group) {
 					$group['groupid'] = md5($group['name']); 
