@@ -33,6 +33,17 @@ class CWidgetProblemsBySvMnz extends CWidget {
 	 */
 	#selected_item = null;
 
+	/**
+	 * Flag indicating if widget has ever been updated.
+	 *
+	 * @type {boolean}
+	 */
+	#has_ever_updated = false;
+
+	hasEverUpdated() {
+		return this.#has_ever_updated;
+	}
+
 	onStart() {
 		this._events = {
 			...this._events,
@@ -58,6 +69,7 @@ class CWidgetProblemsBySvMnz extends CWidget {
 
 	setContents(response) {
 		super.setContents(response);
+		this.#has_ever_updated = true;
 
 		if (this.getFields().show_type !== CWidgetProblemsBySv.SHOW_GROUPS 
 			&& this.getFields().show_type !== CWidgetProblemsBySv.SHOW_TAGS) {
