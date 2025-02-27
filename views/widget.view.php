@@ -21,7 +21,7 @@
  * @var array $data
  */
 
-use Widgets\ProblemsBySv\Widget;
+use Modules\ProblemsBySvMnz\Widget;
 
 if ($data['error'] !== null) {
 	$table = new CTableInfo();
